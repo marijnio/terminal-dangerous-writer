@@ -163,7 +163,7 @@ def main():
         if SAVE_ON_EXIT and content.strip():
             with open(OUTPUT_FILE, "w") as f:
                 f.write(content)
-            print(f"{GREEN}Saved to {OUTPUT_FILE}{RESET}")
+            print(f"{GREEN}Saved to {OUTPUT_FILE}{RESET} in active folder.")
         else:
             print(f"{YELLOW}Nothing to save.{RESET}")
         sys.exit(0)
