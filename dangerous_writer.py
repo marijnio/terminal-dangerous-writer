@@ -144,7 +144,27 @@ def timer_thread():
 
 
 def read_char(fd) -> str:
-    return os.read(fd, 1).decode("utf-8", errors="replace")
+    """Read one full UTF-8 character (1–4 bytes) from the file descriptor."""
+    first = os.read(fd, 1)
+    if not first:
+        return ""
+
+    byte = first[0]
+    if byte < 0x80:
+        # Single-byte ASCII character
+        n_extra = 0
+    elif byte < 0xE0:
+        # 2-byte sequence (e.g. ü, ñ, é)
+        n_extra = 1
+    elif byte < 0xF0:
+        # 3-byte sequence (e.g. –, €, most CJK)
+        n_extra = 2
+    else:
+        # 4-byte sequence (e.g. emoji 🔥)
+        n_extra = 3
+
+    rest = os.read(fd, n_extra) if n_extra else b""
+    return (first + rest).decode("utf-8", errors="replace")
 
 
 def main():
@@ -152,6 +172,9 @@ def main():
 
     fd  = sys.stdin.fileno()
     old = termios.tcgetattr(fd)
+
+    # Wrap stdout in a UTF-8 writer so multi-byte characters render correctly
+    sys.stdout = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1, closefd=False)
 
     def cleanup(signum=None, frame=None):
         global running
@@ -161,7 +184,7 @@ def main():
         sys.stdout.flush()
         content = "".join(text)
         if SAVE_ON_EXIT and content.strip():
-            with open(OUTPUT_FILE, "w") as f:
+            with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
                 f.write(content)
             print(f"{GREEN}Saved to {OUTPUT_FILE}{RESET} in active folder.")
         else:
